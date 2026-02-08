@@ -1,37 +1,29 @@
 # run_agent.py
-# Compatible with Python 3.12 and Pydantic v2
+# Stable version for Python 3.12 + GitHub Actions
 
-from google.generativeai import types
-import google.generativeai as genai
 import os
+import google.generativeai as genai
 
 
 def main():
-    # Set API key (use environment variable)
-    genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+    api_key = os.getenv("GOOGLE_API_KEY")
 
-    # ✅ CORRECT CONFIG (NO BOOLEAN ERROR)
-    config = types.GenerateContentConfig(
-        temperature=0.7,
-        top_p=0.95,
-        max_output_tokens=2048,
-        automatic_function_calling={
-            "enabled": True
-        }
-    )
+    if not api_key:
+        raise ValueError("GOOGLE_API_KEY not found in environment variables")
+
+    genai.configure(api_key=api_key)
 
     model = genai.GenerativeModel(
-        model_name="models/gemini-1.5-pro",
-        generation_config=config
+        model_name="models/gemini-1.5-pro"
     )
 
     response = model.generate_content(
         "Explain Artificial Intelligence in simple words"
     )
 
+    print("===== Gemini Output =====")
     print(response.text)
 
 
 if __name__ == "__main__":
     main()
-
