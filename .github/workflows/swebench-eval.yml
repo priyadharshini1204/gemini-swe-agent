@@ -1,71 +1,30 @@
-name: SWE-bench Pro Evaluation
+name: Run Gemini Agent
+
 on:
+  push:
+    branches: [ "main" ]
   workflow_dispatch:
-    inputs:
-      task_id:
-        description: 'Task ID to run'
-        required: true
-        default: 'internetarchive__openlibrary-c4eebe6677acc4629cb541a98d5e91311444f5d4'
 
 jobs:
-  evaluate:
+  run-agent:
     runs-on: ubuntu-latest
-    container:
-      # Using the hackathon-provided environment
-      image: manojva/openlibrary-python312:latest
-      options: --user root
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Task Environment
-        run: |
-          chmod +x setup_repository.sh
-          ./setup_repository.sh
-
-      - name: Pre-verification (Expect Failure)
-        id: pre_verify
-        continue-on-error: true
-        run: |
-          cd /testbed
-          # Run the specific test that highlights the bug
-          python -m pytest openlibrary/tests/core/test_imports.py::TestImportItem::test_find_staged_or_pending -xvs > /github/workspace/pre_verification.log 2>&1
-
-      - name: Run Gemini AI Agent
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: |
-          # Install the 2026-standard SDK
-          pip install -q -U google-genai
-          # Execute the agent logic
-          python run_agent.py --task_id "${{ github.event.inputs.task_id }}"
-
-      - name: Post-verification (Expect Pass)
-        id: post_verify
-        continue-on-error: true
-        run: |
-          cd /testbed
-          # Run the same test again to verify the AI's fix
-          python -m pytest openlibrary/tests/core/test_imports.py::TestImportItem::test_find_staged_or_pending -xvs > /github/workspace/post_verification.log 2>&1
-
-      - name: Extract Metrics & Generate Patch
-        run: |
-          # 1. Capture the code changes
-          cd /testbed && git diff > /github/workspace/changes.patch
-          
-          # 2. Extract tokens, cost, and result status
-          cd /github/workspace
-          python extract_metrics.py
-
-      - name: Upload Hackathon Artifacts
-        uses: actions/upload-artifact@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          name: swe-bench-results
-          path: |
-            agent.log
-            result.json
-            pre_verification.log
-            post_verification.log
-            changes.patch
-            prompts.md
+          python-version: "3.12"
+
+      - name: Upgrade pip and install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install google-generativeai
+
+      - name: Run agent
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          python run_agent.py
