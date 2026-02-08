@@ -11,6 +11,7 @@ jobs:
   evaluate:
     runs-on: ubuntu-latest
     container:
+      # Using the hackathon-provided environment
       image: manojva/openlibrary-python312:latest
       options: --user root
 
@@ -24,34 +25,43 @@ jobs:
           ./setup_repository.sh
 
       - name: Pre-verification (Expect Failure)
+        id: pre_verify
         continue-on-error: true
         run: |
           cd /testbed
+          # Run the specific test that highlights the bug
           python -m pytest openlibrary/tests/core/test_imports.py::TestImportItem::test_find_staged_or_pending -xvs > /github/workspace/pre_verification.log 2>&1
 
       - name: Run Gemini AI Agent
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          pip install -q -U google-generativeai
+          # Install the 2026-standard SDK
+          pip install -q -U google-genai
+          # Execute the agent logic
           python run_agent.py --task_id "${{ github.event.inputs.task_id }}"
 
       - name: Post-verification (Expect Pass)
+        id: post_verify
         continue-on-error: true
         run: |
           cd /testbed
+          # Run the same test again to verify the AI's fix
           python -m pytest openlibrary/tests/core/test_imports.py::TestImportItem::test_find_staged_or_pending -xvs > /github/workspace/post_verification.log 2>&1
 
       - name: Extract Metrics & Generate Patch
         run: |
+          # 1. Capture the code changes
           cd /testbed && git diff > /github/workspace/changes.patch
+          
+          # 2. Extract tokens, cost, and result status
           cd /github/workspace
           python extract_metrics.py
 
-      - name: Upload Artifacts
+      - name: Upload Hackathon Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: evaluation-results
+          name: swe-bench-results
           path: |
             agent.log
             result.json
