@@ -1,13 +1,31 @@
 
 #!/bin/bash
-# Navigate to testbed
+set -e
+
+echo "--- Starting Repository Setup ---"
+echo "Task ID: $TASK_ID"
+
+# 1. Clone the OpenLibrary repository into /testbed
+# We use /testbed because your workflow logic points there
+if [ ! -d "/testbed/.git" ]; then
+    echo "Cloning OpenLibrary..."
+    git clone https://github.com/internetarchive/openlibrary.git /testbed
+else
+    echo "Testbed already exists, skipping clone."
+fi
+
 cd /testbed
 
-# Reset to base commit
-git reset --hard 84cc4ed5697b83a849e9106a09bfed501169cc20
-git clean -fd
+# 2. Checkout the specific broken state
+# For the specific task ID in your default input:
+# internetarchive__openlibrary-c4eebe6677acc4629cb541a98d5e91311444f5d4
+# The commit hash is the last part of the ID: c4eebe6677acc4629cb541a98d5e91311444f5d4
+COMMIT_HASH=$(echo $TASK_ID | rev | cut -d'-' -f1 | rev)
 
-# Checkout the specific test file for the task
-git checkout c4eebe6677acc4629cb541a98d5e91311444f5d4 -- openlibrary/tests/core/test_imports.py
+echo "Checking out commit: $COMMIT_HASH"
+git checkout $COMMIT_HASH
 
-echo "Environment ready."
+# 3. Optional: Install dependencies if not in the container image
+# pip install -e .
+
+echo "--- Setup Complete ---"
